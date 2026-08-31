@@ -64,7 +64,7 @@ def login():
         connection.close()
 
         if candidate:
-            session["candidate_id"] = candidate["id"]
+            session["candidate_id"] = candidate[0]
             return redirect("/dashboard")
 
         return "Invalid email or password"
