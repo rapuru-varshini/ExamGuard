@@ -1,5 +1,6 @@
-from flask import Flask, redirect, request, render_template, session
+from flask import Flask, redirect, request, render_template, session, redirect 
 from database import init_db, get_db
+from werkzeug.security import check_password_hash, generate_password_hash,check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "examguard_secret_key"
@@ -22,6 +23,8 @@ def register():
         name = request.form["name"]
         email = request.form["email"]
         password = request.form["password"]
+        hashed_password = generate_password_hash(password)
+        print(f"Name: {name}, Email: {email}, Password: {hashed_password}")
 
         connection = get_db()
 
@@ -31,13 +34,14 @@ def register():
             (name, email, password)
             VALUES (?, ?, ?)
             """,
-            (name, email, password)
+            (name, email, hashed_password)
         )
 
         connection.commit()
         connection.close()
 
-        return "Registration successful"
+       # return "Registration successful" 
+        return redirect("/login") 
 
     return render_template("register.html")
 
@@ -56,15 +60,15 @@ def login():
             """
             SELECT *
             FROM candidates
-            WHERE email = ? AND password = ?
+            WHERE email = ?  
             """,
-            (email, password)
+            (email,)
         ).fetchone()
 
         connection.close()
 
-        if candidate:
-            session["candidate_id"] = candidate[0]
+        if candidate and check_password_hash(candidate["password"], password):
+            session["candidate_id"] = candidate["id"]
             return redirect("/dashboard")
 
         return "Invalid email or password"
