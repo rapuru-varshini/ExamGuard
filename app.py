@@ -16,7 +16,7 @@ def captureCandidatePhoto():
     photo= request.files.get("photo")
     if not photo:
         return {
-            "success":"False",
+            "success":False,
             "message":"No photo uploaded"
 
         },400
@@ -24,12 +24,12 @@ def captureCandidatePhoto():
     photo_path = capture_photo(image_data)
     if not photo_path:
         return {
-            "success":"False",
+            "success":False,
             "message":"could not process photo"
         },400
     session["capture_photo"]=photo_path
     return {
-        "success":"True",
+        "success":True,
         "message":"photo captured successfully",
         "photo_path":photo_path
 
@@ -46,53 +46,59 @@ def home():
     return "Welcome to Exam Guard"
 
 
-@app.route("/register", methods=["GET", "POST"])
+ 
+@app.route('/register', methods=['GET', 'POST'])
 def register():
+    if request.method == 'POST':
+        username = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
+       # photo = request.files.get('candidate_photo')
 
-    if request.method == "POST":
-
-        name = request.form["name"]
-        email = request.form["email"]
-        password = request.form["password"]
-        hashed_password = generate_password_hash(password)
-        print(f"Name: {name}, Email: {email}, Password: {hashed_password}")
-        photo= request.files.get("photo")
-
-        photo_path=session.get("capture_photo")
-
+        if not username or not email or not password:
+            return render_template('register.html', error="Please fill in all required fields.")
+        photo_path = session.get("capture_photo")
         if not photo_path:
-            return "please capture your photo before registering"
-        
-
-        if not name or not email or not password:
-            return render_template("register.html", error="Please fill in all required fields")
-        
-        if not photo or photo.filename == "":
-            return render_template("register.html", error="Please select a photo")
-
-        os.makedirs(upload_folder, exist_ok=True)
-        filename=secure_filename(photo.filename)
-        photo_path=os.path.join(upload_folder, filename)
-        photo.save(photo_path)
-
+            return render_template('register.html', error="Please capture a photo before registering.")
+    try:    
         connection = get_db()
+        print("candidate email:", email)
+
+        
+    
+        
+        # Check if email is already registered
+        # connection.execute("SELECT id FROM candidates WHERE email = ?", (email,))
+        # if connection.fetchone():
+        #     connection.close()
+        #     return render_template('register.html', error="An account with this email already exists.")
 
         connection.execute(
             """
-            INSERT INTO candidates
-            (name, email, password, photo)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO candidates(name, email, password, photo)
+            VALUES(?, ?, ?, ?)
             """,
-            (name, email, hashed_password, photo_path)
+            (username, email, generate_password_hash(password), photo_path)
         )
-
         connection.commit()
+        # connection.close()
+        session.pop("capture_photo", None)
+        print("Registration successful for:", username)
+
+        # return render_template('register.html', success=True, username=username)
+        print("Registration successful for:", username)
+        print("Redirecting to login page...")
+        return redirect("/login")
+        print("Registration successful for:")
+    except Exception as e:
+        connection.rollback()
+    
+        print("Error during registration:", e)
+        return render_template('register.html', error="An error occurred during registration. Please try again.")
+    finally:
         connection.close()
 
-       # return "Registration successful" 
-        return redirect("/login") 
-
-    return render_template("register.html")
+    return render_template('register.html')
 
 
 @app.route("/login", methods=["GET", "POST"])
